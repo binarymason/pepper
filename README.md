@@ -14,5 +14,5 @@ Clone the code and place the script somewhere in your PATH.
 
 ```bash
 git clone https://github.com/binarymason/pepper.git ~/pepper
-cp ~/pepper/pepper /usr/local/bin
+cp ~/pepper/pepper /usr/local/bin/
 ```
