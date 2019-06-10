@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+set -e
+
+function finish {
+  rm "$tmp_file"
+  echo "==> done."
+}
+trap finish EXIT
+
+echo "** adding pepper **"
+for run in {1..80}; do
+  echo -n '.'
+  sleep 0.005
+done
+echo
+
+# end early if user is just trying to ping
+if echo "$@" | grep "test.ping" >/dev/null; then
+  salt "$1" test.ping
+fi
+
+destructive_actions="rm|mv|cp"
+danger=false
+if echo "${@:2}" | grep -Ew "$destructive_actions" >/dev/null; then
+  echo
+  echo "== WARNING =="
+  echo "+ you are about to do a potentially destructive action."
+  danger=true
+fi
+
+
+host_pattern="$1"
+tmp_file=pepper.tmp
+
+echo "+ counting matching minions..."
+salt "$host_pattern" test.ping --out=text > "$tmp_file"
+
+# hosts=$(cat "$tmp_file" | cut -d: -f1)
+count_of_hosts_matched=$(cat "$tmp_file" | wc -l)
+first_host=$(grep True "$tmp_file" | head -n 1 | cut -d: -f1)
+remaining_hosts=$(sed '1 d' "$tmp_file" | cut -d: -f1)
+
+echo "+ number of minions matched: $count_of_hosts_matched"
+echo "+ running salt command first on host: $first_host"
+
+salt "$first_host" "${@:2}"
+
+
+echo "==> look good?"
+if "$danger"; then
+  read -p "+ to continue, type in all caps PROCEED: " confirmation
+  if [ "$confirmation" != "PROCEED" ]; then
+    echo "+ exiting..."
+    exit 1
+  fi
+else
+  echo -n "+ press Enter to run on the remaining hosts. Ctrl-C to quit."
+  read
+fi
+
+salt -L "$remaining_hosts" "${@:2}"
